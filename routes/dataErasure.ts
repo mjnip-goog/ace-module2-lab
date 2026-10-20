@@ -12,8 +12,6 @@ import { AllHtmlEntities as Entities } from 'html-entities'
 import { SecurityQuestionModel } from '../models/securityQuestion'
 import { PrivacyRequestModel } from '../models/privacyRequests'
 import { SecurityAnswerModel } from '../models/securityAnswer'
-import * as challengeUtils from '../lib/challengeUtils'
-import { challenges } from '../data/datacache'
 import * as security from '../lib/insecurity'
 import { UserModel } from '../models/user'
 
@@ -101,30 +99,18 @@ router.post('/', (req: Request<Record<string, unknown>, Record<string, unknown>,
       }
 
       if (req.body.layout) {
-        const filePath: string = path.resolve(req.body.layout).toLowerCase()
-        const isForbiddenFile: boolean = (filePath.includes('ftp') || filePath.includes('ctf.key') || filePath.includes('encryptionkeys'))
-        if (!isForbiddenFile) {
-          res.render('dataErasureResult', {
-            ...req.body,
-            ...themeVars
-          }, (error, html) => {
-            if (!html || error) {
-              next(new Error(error.message))
-            } else {
-              const sendlfrResponse: string = html.slice(0, 100) + '......'
-              res.send(sendlfrResponse)
-              challengeUtils.solveIf(challenges.lfrChallenge, () => { return true })
-            }
-          })
-        } else {
+        const safeDir = path.resolve(__dirname, '../views')
+        const filePath: string = path.resolve(safeDir, String(req.body.layout)).toLowerCase()
+        const isForbiddenFile: boolean = (!filePath.startsWith(safeDir.toLowerCase() + path.sep) || filePath.includes('ftp') || filePath.includes('ctf.key') || filePath.includes('encryptionkeys'))
+        if (isForbiddenFile) {
           next(new Error('File access not allowed'))
+          return
         }
-      } else {
-        res.render('dataErasureResult', {
-          ...req.body,
-          ...themeVars
-        })
       }
+
+      res.render('dataErasureResult', {
+        ...themeVars
+      })
     } catch (error) {
       next(error)
     }
